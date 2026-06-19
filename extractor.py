@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 import ast
 import re
 
 import fitz
 from pydantic import BaseModel, Field
+
+from engine.sanitizer import normalize_pdf_lines, build_sections
 
 
 class CodeFunction(BaseModel):
@@ -23,6 +24,7 @@ class ProblemItem(BaseModel):
     functions: list[CodeFunction] = Field(default_factory=list)
     imports: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+    status: str = "needs_review"
 
 
 class Catalog(BaseModel):
@@ -33,15 +35,13 @@ class Catalog(BaseModel):
     summary: dict
 
 
-HEADING_RE = re.compile(r"^[A-Z][A-Za-z0-9 ∏Π\\-/()]+$")
-CODE_START_RE = re.compile(
-    r"^(def |class |import |from |graph\s*=|k\s*=|print\(|[a-zA-Z_][a-zA-Z0-9_]*\s*=)"
-)
-
-
 def _read_pages(pdf_path: Path) -> list[str]:
     doc = fitz.open(pdf_path)
     return [page.get_text("text") for page in doc]
+
+
+def _slug(title: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-") or "section"
 
 
 def _find_functions(code: str) -> list[CodeFunction]:
@@ -50,117 +50,94 @@ def _find_functions(code: str) -> list[CodeFunction]:
     except SyntaxError:
         return []
 
-    functions = []
+    out = []
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef):
-            args = [arg.arg for arg in node.args.args]
-            functions.append(CodeFunction(name=node.name, line_start=node.lineno, args=args))
-    return sorted(functions, key=lambda f: f.line_start)
+            out.append(CodeFunction(
+                name=node.name,
+                line_start=node.lineno,
+                args=[a.arg for a in node.args.args]
+            ))
+
+    return sorted(out, key=lambda f: f.line_start)
 
 
 def _find_imports(code: str) -> list[str]:
-    imports = []
-    for line in code.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("import ") or stripped.startswith("from "):
-            imports.append(stripped)
-    return imports
+    return [
+        line.strip()
+        for line in code.splitlines()
+        if line.strip().startswith(("import ", "from "))
+    ]
 
 
 def _warnings_for(code: str) -> list[str]:
     warnings = []
 
     if "pass" in code:
-        warnings.append("Contains placeholder 'pass'.")
-    if "gurobipy" in code:
-        warnings.append("Requires Gurobi/gurobipy.")
-    if "networkx" in code:
-        warnings.append("Requires networkx.")
+        warnings.append("Contains placeholder pass.")
     if "return True" in code and "# check" in code:
-        warnings.append("May contain stub logic that always returns True.")
+        warnings.append("Likely stub logic: comment says check, but function returns True.")
+    if "gurobipy" in code:
+        warnings.append("External dependency: gurobipy.")
+    if "networkx" in code:
+        warnings.append("External dependency: networkx.")
+    if "itertools" in code and "import itertools" not in code and "from itertools" not in code:
+        warnings.append("Possible missing itertools import.")
+    if "combinations(" in code and "from itertools import combinations" not in code:
+        warnings.append("Possible missing combinations import.")
+    if "nx." in code and "import networkx as nx" not in code:
+        warnings.append("Possible missing networkx import.")
 
     try:
         ast.parse(code)
     except SyntaxError as exc:
-        warnings.append(f"Syntax issue detected: {exc.msg} near line {exc.lineno}.")
+        warnings.append(f"Syntax issue after sanitation: {exc.msg} near line {exc.lineno}.")
 
     return warnings
 
 
-def _looks_like_heading(line: str) -> bool:
-    clean = line.strip()
-
-    if not clean:
-        return False
-    if clean == "NP HARD PROBLEMS":
-        return False
-    if re.match(r"^\d+\s+of\s+\d+$", clean):
-        return False
-    if CODE_START_RE.match(clean):
-        return False
-    if clean.startswith("#"):
-        return False
-    if len(clean) > 90:
-        return False
-
-    return bool(HEADING_RE.match(clean))
-
-
-def _slug(title: str) -> str:
-    slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
-    return slug or "section"
+def _status(functions: list[CodeFunction], warnings: list[str]) -> str:
+    if any(w.startswith("Syntax issue") for w in warnings):
+        return "syntax_review"
+    if not functions:
+        return "no_function_found"
+    if warnings:
+        return "needs_review"
+    return "candidate"
 
 
 def extract_pdf_to_catalog(pdf_path: Path) -> Catalog:
     pages = _read_pages(pdf_path)
+    sanitized_lines = normalize_pdf_lines(pages)
+    sections = build_sections(sanitized_lines)
 
-    items: list[ProblemItem] = []
-    current_title: Optional[str] = None
-    current_page = 1
-    current_lines: list[str] = []
+    items = []
 
-    def flush():
-        nonlocal current_title, current_page, current_lines
+    for index, section in enumerate(sections, start=1):
+        code = section["code"]
 
-        if current_title and current_lines:
-            code = "\n".join(current_lines).strip()
-            # Keep only sections that have at least some likely code.
-            if "def " in code or "import " in code or "print(" in code:
-                item_id = f"{current_page}-{_slug(current_title)}"
-                items.append(ProblemItem(
-                    id=item_id,
-                    title=current_title,
-                    page=current_page,
-                    code=code,
-                    functions=_find_functions(code),
-                    imports=_find_imports(code),
-                    warnings=_warnings_for(code),
-                ))
+        # Only keep sections that contain likely Python/code.
+        if not any(marker in code for marker in ("def ", "import ", "print(", "graph =", "nx.")):
+            continue
 
-        current_lines = []
+        functions = _find_functions(code)
+        imports = _find_imports(code)
+        warnings = _warnings_for(code)
 
-    for page_index, text in enumerate(pages, start=1):
-        for raw_line in text.splitlines():
-            line = raw_line.rstrip()
-            clean = line.strip()
+        items.append(ProblemItem(
+            id=f"{index}-{section['page']}-{_slug(section['title'])}",
+            title=section["title"],
+            page=section["page"],
+            code=code,
+            functions=functions,
+            imports=imports,
+            warnings=warnings,
+            status=_status(functions, warnings)
+        ))
 
-            if _looks_like_heading(clean):
-                flush()
-                current_title = clean
-                current_page = page_index
-                continue
-
-            if current_title:
-                if clean and clean != "NP HARD PROBLEMS" and not re.match(r"^\d+\s+of\s+\d+$", clean):
-                    current_lines.append(line)
-
-    flush()
-
-    warning_count = sum(len(item.warnings) for item in items)
-    runnable_count = sum(
-        1 for item in items
-        if item.functions and not any("Syntax issue" in w for w in item.warnings)
-    )
+    status_counts = {}
+    for item in items:
+        status_counts[item.status] = status_counts.get(item.status, 0) + 1
 
     return Catalog(
         source_file=pdf_path.name,
@@ -168,9 +145,11 @@ def extract_pdf_to_catalog(pdf_path: Path) -> Catalog:
         item_count=len(items),
         items=items,
         summary={
-            "status": "first_pass_fixed",
-            "warning_count": warning_count,
-            "runnable_candidate_count": runnable_count,
-            "note": "Structural extraction only. Some source snippets need manual repair before execution."
+            "status": "sanitized_pass",
+            "status_counts": status_counts,
+            "warning_count": sum(len(i.warnings) for i in items),
+            "sanitized_line_count": len(sanitized_lines),
+            "raw_section_count": len(sections),
+            "note": "PDF was sanitized before section extraction. Execution still requires manual verification."
         }
     )

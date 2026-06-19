@@ -15,7 +15,7 @@ function renderList(items) {
     div.className = "problem";
     div.innerHTML = `
       <div class="title">${item.title}</div>
-      <div class="sub">Page ${item.page} · ${item.functions.length} functions · ${item.warnings.length} warnings</div>
+      <div class="sub">Page ${item.page} · ${item.status || 'unknown'} · ${item.functions.length} functions · ${item.warnings.length} warnings</div>
     `;
     div.onclick = () => selectProblem(item);
     box.appendChild(div);
@@ -25,7 +25,7 @@ function renderList(items) {
 function selectProblem(item) {
   selected = item;
   el("selectedTitle").textContent = item.title;
-  el("meta").innerHTML = `<span class="badge">Page ${item.page}</span><span class="badge">${item.id}</span>`;
+  el("meta").innerHTML = `<span class="badge">Page ${item.page}</span><span class="badge">${item.status || 'unknown'}</span><span class="badge">${item.id}</span>`;
   el("codeView").textContent = item.code;
 
   el("warnings").innerHTML = "";

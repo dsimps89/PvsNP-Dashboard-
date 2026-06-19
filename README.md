@@ -1,4 +1,40 @@
-# NP PDF Unified Program — First Pass Fixed
+# NP PDF Unified Program — Sanitized Pass
+
+This version adds a sanitation layer before catalog compilation.
+
+## Why
+
+The source PDF contains code-like text across many pages. Direct PDF extraction can create:
+
+- broken indentation
+- wrapped lines
+- page headers and footers inside code
+- incomplete functions
+- missing imports
+- section headings mixed with snippets
+
+## Pipeline
+
+```text
+PDF upload
+  ↓
+PyMuPDF raw text extraction
+  ↓
+sanitizer.py
+  - removes headers/footers
+  - normalizes symbols
+  - joins wrapped lines conservatively
+  - detects headings
+  - builds raw sections
+  ↓
+extractor.py
+  - creates catalog
+  - finds functions/imports
+  - detects warnings
+  - assigns review status
+  ↓
+HTML dashboard
+```
 
 ## Run
 
@@ -16,16 +52,14 @@ Open:
 http://127.0.0.1:5000
 ```
 
-## Fix included
+## Status meanings
 
-This version removes the Pydantic v2-only `model_dump_json()` dependency that likely caused upload to succeed but catalog compilation to fail.
+- `candidate`: no obvious issue detected
+- `needs_review`: usable section, but warnings exist
+- `syntax_review`: sanitation still leaves syntax problems
+- `no_function_found`: code-like section but no function detected
 
-## Current features
+## Important
 
-- PDF upload
-- PDF text extraction
-- problem/code section detection
-- catalog JSON compilation
-- searchable HTML dashboard
-- warning detection
-- limited safe function runner
+This program does not validate the mathematical correctness of the source material.
+It only sanitizes, organizes, indexes, and lightly tests extracted code.
