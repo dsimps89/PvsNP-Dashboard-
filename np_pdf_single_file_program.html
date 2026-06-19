@@ -1,0 +1,1029 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>NP PDF Unified HTML/Python Program</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- PDF extraction in-browser -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+<!-- Python in-browser -->
+<script src="https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js"></script>
+
+<style>
+:root {
+  --bg: #0f172a;
+  --panel: #111827;
+  --panel2: #1f2937;
+  --line: #334155;
+  --text: #e5e7eb;
+  --muted: #94a3b8;
+  --accent: #2563eb;
+  --warn: #f59e0b;
+  --bad: #ef4444;
+  --good: #22c55e;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+header {
+  padding: 20px 28px;
+  border-bottom: 1px solid var(--line);
+  background: #020617;
+}
+
+header h1 {
+  margin: 0 0 6px 0;
+  font-size: 22px;
+}
+
+header p {
+  margin: 0;
+  color: var(--muted);
+}
+
+main {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 16px;
+  padding: 16px;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+  min-width: 0;
+}
+
+.sidebar {
+  height: calc(100vh - 110px);
+  overflow: auto;
+}
+
+.workspace {
+  height: calc(100vh - 110px);
+  overflow: auto;
+}
+
+button, input, select, textarea {
+  width: 100%;
+  padding: 10px;
+  margin: 6px 0;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #020617;
+  color: var(--text);
+}
+
+button {
+  background: var(--accent);
+  border: 0;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+button.secondary {
+  background: #334155;
+}
+
+button.danger {
+  background: #7f1d1d;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.statusbar {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.metric {
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.metric .label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.metric .value {
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.problem {
+  padding: 10px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+
+.problem:hover {
+  background: var(--panel2);
+}
+
+.problem-title {
+  font-weight: 750;
+}
+
+.problem-meta {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.badge {
+  display: inline-block;
+  margin: 3px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #334155;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.badge.good { background: #14532d; }
+.badge.warn { background: #78350f; }
+.badge.bad { background: #7f1d1d; }
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.tabs button {
+  width: auto;
+  padding: 8px 12px;
+  background: #334155;
+}
+
+.tabs button.active {
+  background: var(--accent);
+}
+
+.tabpage {
+  display: none;
+}
+
+.tabpage.active {
+  display: block;
+}
+
+.codebox {
+  background: #020617;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: auto;
+  max-height: 620px;
+}
+
+.code-line {
+  display: grid;
+  grid-template-columns: 58px 1fr;
+  border-bottom: 1px solid rgba(51, 65, 85, .35);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.lineno {
+  color: var(--muted);
+  text-align: right;
+  padding: 2px 10px;
+  user-select: none;
+  background: rgba(15, 23, 42, .8);
+}
+
+.codetext {
+  white-space: pre-wrap;
+  padding: 2px 10px;
+}
+
+pre {
+  white-space: pre-wrap;
+  overflow: auto;
+  background: #020617;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.small {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.hidden {
+  display: none;
+}
+
+.warning-list li {
+  margin-bottom: 5px;
+}
+
+textarea {
+  min-height: 90px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+@media (max-width: 980px) {
+  main {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar, .workspace {
+    height: auto;
+  }
+
+  .statusbar {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+</style>
+</head>
+
+<body>
+<header>
+  <h1>NP PDF Unified HTML/Python Program</h1>
+  <p>Single-file browser app: PDF extraction, sanitation, catalog compilation, line-by-line rendering, and Python execution through Pyodide.</p>
+</header>
+
+<main>
+  <aside class="panel sidebar">
+    <h2>1. Load PDF</h2>
+    <input id="pdfFile" type="file" accept="application/pdf">
+    <button id="compileBtn">Extract Full Document + Compile Catalog</button>
+    <button id="downloadCatalogBtn" class="secondary">Download Catalog JSON</button>
+    <button id="downloadScriptBtn" class="secondary">Download Unified Python Script</button>
+
+    <pre id="status">Waiting for PDF.</pre>
+
+    <div class="statusbar">
+      <div class="metric"><div class="label">Pages</div><div id="mPages" class="value">0</div></div>
+      <div class="metric"><div class="label">Lines</div><div id="mLines" class="value">0</div></div>
+      <div class="metric"><div class="label">Sections</div><div id="mSections" class="value">0</div></div>
+      <div class="metric"><div class="label">Functions</div><div id="mFunctions" class="value">0</div></div>
+      <div class="metric"><div class="label">Warnings</div><div id="mWarnings" class="value">0</div></div>
+    </div>
+
+    <h2>2. Search</h2>
+    <input id="searchBox" placeholder="Search title, code, warning...">
+    <select id="statusFilter">
+      <option value="all">All statuses</option>
+      <option value="candidate">candidate</option>
+      <option value="needs_review">needs_review</option>
+      <option value="syntax_review">syntax_review</option>
+      <option value="no_function_found">no_function_found</option>
+    </select>
+
+    <div id="problemList"></div>
+  </aside>
+
+  <section class="panel workspace">
+    <h2 id="selectedTitle">No section selected</h2>
+    <div id="selectedMeta"></div>
+
+    <div class="tabs">
+      <button class="tabBtn active" data-tab="renderTab">Line-by-Line HTML</button>
+      <button class="tabBtn" data-tab="rawTab">Raw Code</button>
+      <button class="tabBtn" data-tab="pythonTab">Run Python</button>
+      <button class="tabBtn" data-tab="docTab">Full Document</button>
+    </div>
+
+    <section id="renderTab" class="tabpage active">
+      <h3>Warnings</h3>
+      <ul id="warningList" class="warning-list"></ul>
+
+      <h3>Functions</h3>
+      <div id="functionBadges"></div>
+
+      <h3>Code Rendering</h3>
+      <div id="codeLines" class="codebox"></div>
+    </section>
+
+    <section id="rawTab" class="tabpage">
+      <h3>Raw Sanitized Code</h3>
+      <pre id="rawCode"></pre>
+    </section>
+
+    <section id="pythonTab" class="tabpage">
+      <h3>Python in HTML</h3>
+      <p class="small">This loads Pyodide, then executes the selected section in a browser-side Python runtime. External packages like gurobipy are blocked/unavailable.</p>
+      <button id="loadPyBtn">Load Python Runtime</button>
+      <input id="functionInput" placeholder="Function name, e.g. chromatic_number">
+      <textarea id="argsInput" placeholder='Args JSON, e.g. [[[0,1],[1,0]], 2]'></textarea>
+      <button id="runBtn">Run Function</button>
+      <pre id="pyOutput">Python runtime not loaded.</pre>
+    </section>
+
+    <section id="docTab" class="tabpage">
+      <h3>Full Extracted Document</h3>
+      <p class="small">This is the text extracted from every PDF page before catalog sectioning.</p>
+      <pre id="fullDoc"></pre>
+    </section>
+  </section>
+</main>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+let appState = {
+  fileName: "",
+  pages: [],
+  rawLines: [],
+  sanitizedLines: [],
+  sections: [],
+  catalog: [],
+  selected: null,
+  pyodide: null,
+  pyReady: false
+};
+
+function $(id) {
+  return document.getElementById(id);
+}
+
+function setStatus(msg) {
+  $("status").textContent = msg;
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, ch => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
+  }[ch]));
+}
+
+function setMetric(id, value) {
+  $(id).textContent = value;
+}
+
+/* ============================================================
+   PDF EXTRACTION
+   ============================================================ */
+
+async function extractPdfPages(file) {
+  const buffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+  const pages = [];
+
+  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+    setStatus(`Extracting page ${pageNumber} of ${pdf.numPages}...`);
+
+    const page = await pdf.getPage(pageNumber);
+    const textContent = await page.getTextContent();
+
+    const lines = [];
+    let lastY = null;
+    let currentLine = [];
+
+    for (const item of textContent.items) {
+      const y = Math.round(item.transform[5]);
+
+      if (lastY !== null && Math.abs(y - lastY) > 4) {
+        lines.push(currentLine.join(" ").trim());
+        currentLine = [];
+      }
+
+      currentLine.push(item.str);
+      lastY = y;
+    }
+
+    if (currentLine.length) {
+      lines.push(currentLine.join(" ").trim());
+    }
+
+    pages.push({
+      page: pageNumber,
+      text: lines.filter(Boolean).join("\n")
+    });
+  }
+
+  return pages;
+}
+
+/* ============================================================
+   SANITIZER
+   ============================================================ */
+
+function normalizeSymbolText(text) {
+  return text
+    .replaceAll("∏", "Pi")
+    .replaceAll("Π", "Pi")
+    .replaceAll("≤", "<=")
+    .replaceAll("≥", ">=")
+    .replaceAll("≠", "!=")
+    .replaceAll("“", '"')
+    .replaceAll("”", '"')
+    .replaceAll("’", "'");
+}
+
+function isHeaderFooter(line) {
+  const clean = line.trim();
+
+  if (!clean) return true;
+  if (clean === "NP HARD PROBLEMS") return true;
+  if (/^\d+\s+of\s+\d+$/.test(clean)) return true;
+
+  return false;
+}
+
+function isMetadataLine(line) {
+  const lower = line.trim().toLowerCase();
+
+  return (
+    lower.startsWith("title:") ||
+    lower.startsWith("author information") ||
+    lower.startsWith("- author:") ||
+    lower.startsWith("- affiliation:") ||
+    lower.startsWith("- corresponding author") ||
+    lower.startsWith("- orcid:") ||
+    lower.startsWith("abstract:") ||
+    lower.startsWith("keywords:") ||
+    lower.startsWith("statements and declarations")
+  );
+}
+
+function looksLikeCode(line) {
+  const s = line.trim();
+
+  return (
+    s.startsWith("def ") ||
+    s.startsWith("class ") ||
+    s.startsWith("import ") ||
+    s.startsWith("from ") ||
+    s.startsWith("for ") ||
+    s.startsWith("if ") ||
+    s.startsWith("elif ") ||
+    s.startsWith("else") ||
+    s.startsWith("while ") ||
+    s.startsWith("return ") ||
+    s.startsWith("print(") ||
+    /^[A-Za-z_][A-Za-z0-9_]*\s*=/.test(s) ||
+    /^[A-Za-z_][A-Za-z0-9_]*\(/.test(s) ||
+    s.startsWith("#") ||
+    s.startsWith("[") ||
+    s.startsWith("{") ||
+    s.startsWith("}") ||
+    s.startsWith("]") ||
+    s.endsWith(":")
+  );
+}
+
+function looksLikeHeading(line) {
+  const s = line.trim();
+
+  if (!s) return false;
+  if (s.length > 90) return false;
+  if (isHeaderFooter(s)) return false;
+  if (looksLikeCode(s)) return false;
+  if (/[=]{1,}|[\[\]{}]/.test(s)) return false;
+  if (/^\d+[\.\)]/.test(s)) return false;
+
+  const words = s.split(/\s+/);
+  if (words.length > 9) return false;
+
+  const titleish = words.filter(w => /^[A-Z]/.test(w) || /^[A-Z]{2,}$/.test(w)).length;
+  return titleish >= Math.max(1, words.length - 1);
+}
+
+function shouldJoin(prev, cur) {
+  const a = prev.trim();
+  const b = cur.trim();
+
+  if (!a || !b) return false;
+  if (looksLikeHeading(b)) return false;
+  if (b.startsWith("def ") || b.startsWith("class ") || b.startsWith("import ") || b.startsWith("from ")) return false;
+
+  if (a.endsWith(",") || a.endsWith("\\") || a.endsWith("(") || a.endsWith("[") || a.endsWith("{")) return true;
+  if (b.startsWith(")") || b.startsWith("]") || b.startsWith("}") || b.startsWith("==") || b.startsWith("and ") || b.startsWith("or ")) return true;
+
+  const openParen = (a.match(/\(/g) || []).length - (a.match(/\)/g) || []).length;
+  const openBracket = (a.match(/\[/g) || []).length - (a.match(/\]/g) || []).length;
+  const openBrace = (a.match(/\{/g) || []).length - (a.match(/\}/g) || []).length;
+
+  return openParen > 0 || openBracket > 0 || openBrace > 0;
+}
+
+function sanitizePages(pages) {
+  const rawLines = [];
+
+  for (const page of pages) {
+    const lines = page.text.split("\n");
+
+    for (const raw of lines) {
+      let line = normalizeSymbolText(raw).trim();
+
+      if (isHeaderFooter(line)) continue;
+      if (isMetadataLine(line)) continue;
+
+      rawLines.push({
+        page: page.page,
+        text: line
+      });
+    }
+  }
+
+  const joined = [];
+
+  for (const item of rawLines) {
+    if (!joined.length) {
+      joined.push(item);
+      continue;
+    }
+
+    const last = joined[joined.length - 1];
+
+    if (shouldJoin(last.text, item.text)) {
+      last.text = last.text + " " + item.text;
+    } else {
+      joined.push(item);
+    }
+  }
+
+  return { rawLines, sanitizedLines: joined };
+}
+
+/* ============================================================
+   CATALOG COMPILER
+   ============================================================ */
+
+function slugify(text) {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "section";
+}
+
+function sanitizeCodeLine(line) {
+  let s = line.trim();
+
+  s = s.replace(/^[-•]\s+/, "");
+  s = s.replaceAll(" = = ", " == ");
+  s = s.replaceAll(" ! = ", " != ");
+  s = s.replaceAll(" < = ", " <= ");
+  s = s.replaceAll(" > = ", " >= ");
+
+  return s;
+}
+
+function findFunctions(code) {
+  const functions = [];
+  const lines = code.split("\n");
+
+  lines.forEach((line, index) => {
+    const match = line.match(/^def\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)\s*:/);
+    if (match) {
+      const args = match[2].trim()
+        ? match[2].split(",").map(x => x.trim()).filter(Boolean)
+        : [];
+
+      functions.push({
+        name: match[1],
+        args,
+        line: index + 1
+      });
+    }
+  });
+
+  return functions;
+}
+
+function findImports(code) {
+  return code
+    .split("\n")
+    .map(x => x.trim())
+    .filter(x => x.startsWith("import ") || x.startsWith("from "));
+}
+
+function findWarnings(code) {
+  const warnings = [];
+
+  if (code.includes("pass")) warnings.push("Contains placeholder pass.");
+  if (code.includes("gurobipy")) warnings.push("External dependency: gurobipy.");
+  if (code.includes("networkx") || code.includes("nx.")) warnings.push("External dependency: networkx.");
+  if (code.includes("itertools.") && !code.includes("import itertools")) warnings.push("Possible missing import itertools.");
+  if (code.includes("combinations(") && !code.includes("from itertools import combinations")) warnings.push("Possible missing combinations import.");
+  if (code.includes("return True") && code.includes("# check")) warnings.push("Likely stub logic: comment says check, function returns True.");
+  if (/\bgraph\.successors\(/.test(code) && code.includes("nx.Graph()")) warnings.push("Possible graph type mismatch: successors() requires directed graph.");
+  if (/=\s*induced\s*$/.test(code)) warnings.push("Likely broken extracted line: assignment to undefined 'induced'.");
+
+  const defCount = (code.match(/^def\s+/gm) || []).length;
+  if (defCount === 0) warnings.push("No function definition detected.");
+
+  return warnings;
+}
+
+function statusFrom(functions, warnings) {
+  if (!functions.length) return "no_function_found";
+  if (warnings.some(w => w.toLowerCase().includes("broken"))) return "syntax_review";
+  if (warnings.length) return "needs_review";
+  return "candidate";
+}
+
+function compileSections(sanitizedLines) {
+  const sections = [];
+  let current = null;
+
+  function flush() {
+    if (!current) return;
+
+    current.lines = current.lines
+      .map(sanitizeCodeLine)
+      .filter(x => x && !looksLikeHeading(x));
+
+    current.code = current.lines.join("\n").trim();
+
+    if (
+      current.code &&
+      (
+        current.code.includes("def ") ||
+        current.code.includes("import ") ||
+        current.code.includes("print(") ||
+        current.code.includes("graph =")
+      )
+    ) {
+      const functions = findFunctions(current.code);
+      const warnings = findWarnings(current.code);
+
+      sections.push({
+        id: `${sections.length + 1}-${current.page}-${slugify(current.title)}`,
+        title: current.title,
+        page: current.page,
+        code: current.code,
+        lines: current.code.split("\n"),
+        functions,
+        imports: findImports(current.code),
+        warnings,
+        status: statusFrom(functions, warnings)
+      });
+    }
+
+    current = null;
+  }
+
+  for (const item of sanitizedLines) {
+    if (looksLikeHeading(item.text)) {
+      flush();
+
+      current = {
+        title: item.text,
+        page: item.page,
+        lines: []
+      };
+    } else {
+      if (current) current.lines.push(item.text);
+    }
+  }
+
+  flush();
+
+  return sections;
+}
+
+/* ============================================================
+   UNIFIED PYTHON EXPORT
+   ============================================================ */
+
+function buildUnifiedPythonScript(catalog) {
+  const parts = [];
+
+  parts.push(`# Unified Python Script`);
+  parts.push(`# Generated by NP PDF Unified HTML/Python Program`);
+  parts.push(`# Sections: ${catalog.length}`);
+  parts.push(``);
+  parts.push(`REGISTRY = {}`);
+  parts.push(``);
+
+  for (const item of catalog) {
+    parts.push(`# ============================================================`);
+    parts.push(`# ${item.title}`);
+    parts.push(`# Source page: ${item.page}`);
+    parts.push(`# Status: ${item.status}`);
+    parts.push(`# Warnings: ${item.warnings.join(" | ") || "none"}`);
+    parts.push(`# ============================================================`);
+    parts.push(item.code);
+    parts.push(``);
+    for (const fn of item.functions) {
+      parts.push(`REGISTRY["${fn.name}"] = ${fn.name}`);
+    }
+    parts.push(``);
+  }
+
+  parts.push(`
+def list_functions():
+    return sorted(REGISTRY.keys())
+
+def run_function(name, *args, **kwargs):
+    if name not in REGISTRY:
+        raise KeyError(f"Function not found: {name}")
+    return REGISTRY[name](*args, **kwargs)
+
+if __name__ == "__main__":
+    print("Loaded functions:", len(REGISTRY))
+    print(list_functions())
+`);
+
+  return parts.join("\n");
+}
+
+/* ============================================================
+   RENDERING
+   ============================================================ */
+
+function renderProblemList() {
+  const q = $("searchBox").value.toLowerCase();
+  const status = $("statusFilter").value;
+  const list = $("problemList");
+
+  list.innerHTML = "";
+
+  const filtered = appState.catalog.filter(item => {
+    const hit = (
+      item.title.toLowerCase().includes(q) ||
+      item.code.toLowerCase().includes(q) ||
+      item.warnings.join(" ").toLowerCase().includes(q)
+    );
+
+    const statusHit = status === "all" || item.status === status;
+
+    return hit && statusHit;
+  });
+
+  for (const item of filtered) {
+    const div = document.createElement("div");
+    div.className = "problem";
+
+    const statusClass =
+      item.status === "candidate" ? "good" :
+      item.status === "syntax_review" ? "bad" :
+      item.status === "needs_review" ? "warn" : "";
+
+    div.innerHTML = `
+      <div class="problem-title">${escapeHtml(item.title)}</div>
+      <div class="problem-meta">
+        Page ${item.page} · ${item.functions.length} functions · ${item.warnings.length} warnings
+        <span class="badge ${statusClass}">${item.status}</span>
+      </div>
+    `;
+
+    div.onclick = () => selectItem(item);
+    list.appendChild(div);
+  }
+}
+
+function selectItem(item) {
+  appState.selected = item;
+
+  $("selectedTitle").textContent = item.title;
+  $("selectedMeta").innerHTML = `
+    <span class="badge">ID: ${escapeHtml(item.id)}</span>
+    <span class="badge">Page: ${item.page}</span>
+    <span class="badge">${item.status}</span>
+  `;
+
+  $("warningList").innerHTML = "";
+  for (const warning of item.warnings) {
+    const li = document.createElement("li");
+    li.textContent = warning;
+    $("warningList").appendChild(li);
+  }
+
+  $("functionBadges").innerHTML = "";
+  for (const fn of item.functions) {
+    const span = document.createElement("span");
+    span.className = "badge";
+    span.textContent = `${fn.name}(${fn.args.join(", ")})`;
+    span.onclick = () => {
+      $("functionInput").value = fn.name;
+    };
+    $("functionBadges").appendChild(span);
+  }
+
+  if (item.functions.length) {
+    $("functionInput").value = item.functions[0].name;
+  }
+
+  renderCodeLines(item.lines);
+  $("rawCode").textContent = item.code;
+}
+
+function renderCodeLines(lines) {
+  const box = $("codeLines");
+  box.innerHTML = "";
+
+  lines.forEach((line, i) => {
+    const row = document.createElement("div");
+    row.className = "code-line";
+    row.innerHTML = `
+      <div class="lineno">${i + 1}</div>
+      <div class="codetext">${escapeHtml(line)}</div>
+    `;
+    box.appendChild(row);
+  });
+}
+
+function updateMetrics() {
+  const warnings = appState.catalog.reduce((sum, item) => sum + item.warnings.length, 0);
+  const funcs = appState.catalog.reduce((sum, item) => sum + item.functions.length, 0);
+
+  setMetric("mPages", appState.pages.length);
+  setMetric("mLines", appState.sanitizedLines.length);
+  setMetric("mSections", appState.catalog.length);
+  setMetric("mFunctions", funcs);
+  setMetric("mWarnings", warnings);
+}
+
+function downloadText(filename, text, mime = "text/plain") {
+  const blob = new Blob([text], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+
+  a.href = url;
+  a.download = filename;
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
+
+/* ============================================================
+   PYODIDE RUNNER
+   ============================================================ */
+
+async function loadPythonRuntime() {
+  if (appState.pyReady) {
+    $("pyOutput").textContent = "Python runtime already loaded.";
+    return;
+  }
+
+  $("pyOutput").textContent = "Loading Python runtime. This can take a moment...";
+  appState.pyodide = await loadPyodide();
+  appState.pyReady = true;
+  $("pyOutput").textContent = "Python runtime loaded.";
+}
+
+function buildRunWrapper(code, functionName, args) {
+  return `
+import json, sys, io, traceback
+
+_user_code = ${JSON.stringify(code)}
+_function_name = ${JSON.stringify(functionName)}
+_args = json.loads(${JSON.stringify(JSON.stringify(args))})
+
+_stdout = io.StringIO()
+_old_stdout = sys.stdout
+sys.stdout = _stdout
+
+_result = None
+_error = None
+
+try:
+    ns = {}
+    exec(_user_code, ns, ns)
+    if _function_name not in ns:
+        raise KeyError(f"Function not found: {_function_name}")
+    _result = ns[_function_name](*_args)
+except Exception:
+    _error = traceback.format_exc()
+finally:
+    sys.stdout = _old_stdout
+
+json.dumps({
+    "ok": _error is None,
+    "result": repr(_result),
+    "stdout": _stdout.getvalue(),
+    "error": _error
+})
+`;
+}
+
+async function runSelectedFunction() {
+  if (!appState.selected) {
+    $("pyOutput").textContent = "No selected section.";
+    return;
+  }
+
+  if (!appState.pyReady) {
+    await loadPythonRuntime();
+  }
+
+  let args;
+
+  try {
+    args = JSON.parse($("argsInput").value || "[]");
+    if (!Array.isArray(args)) throw new Error("Args must be a JSON array.");
+  } catch (err) {
+    $("pyOutput").textContent = "Invalid args JSON: " + err.message;
+    return;
+  }
+
+  const code = appState.selected.code;
+  const fn = $("functionInput").value.trim();
+
+  try {
+    const wrapper = buildRunWrapper(code, fn, args);
+    const result = await appState.pyodide.runPythonAsync(wrapper);
+    $("pyOutput").textContent = JSON.stringify(JSON.parse(result), null, 2);
+  } catch (err) {
+    $("pyOutput").textContent = String(err);
+  }
+}
+
+/* ============================================================
+   EVENTS
+   ============================================================ */
+
+$("compileBtn").onclick = async () => {
+  const file = $("pdfFile").files[0];
+
+  if (!file) {
+    setStatus("Choose a PDF first.");
+    return;
+  }
+
+  appState.fileName = file.name;
+
+  try {
+    setStatus("Starting full-document extraction...");
+    appState.pages = await extractPdfPages(file);
+
+    setStatus("Sanitizing extracted lines...");
+    const clean = sanitizePages(appState.pages);
+    appState.rawLines = clean.rawLines;
+    appState.sanitizedLines = clean.sanitizedLines;
+
+    setStatus("Compiling catalog...");
+    appState.catalog = compileSections(appState.sanitizedLines);
+
+    $("fullDoc").textContent = appState.pages
+      .map(p => `\n\n===== PAGE ${p.page} =====\n\n${p.text}`)
+      .join("");
+
+    updateMetrics();
+    renderProblemList();
+
+    if (appState.catalog.length) {
+      selectItem(appState.catalog[0]);
+    }
+
+    setStatus(`Done. Compiled ${appState.catalog.length} sections from ${appState.pages.length} pages.`);
+  } catch (err) {
+    console.error(err);
+    setStatus("Compilation failed: " + err.message);
+  }
+};
+
+$("searchBox").oninput = renderProblemList;
+$("statusFilter").onchange = renderProblemList;
+
+$("downloadCatalogBtn").onclick = () => {
+  const payload = {
+    source_file: appState.fileName,
+    page_count: appState.pages.length,
+    sanitized_line_count: appState.sanitizedLines.length,
+    item_count: appState.catalog.length,
+    items: appState.catalog
+  };
+
+  downloadText("np_pdf_catalog.json", JSON.stringify(payload, null, 2), "application/json");
+};
+
+$("downloadScriptBtn").onclick = () => {
+  const script = buildUnifiedPythonScript(appState.catalog);
+  downloadText("unified_np_pdf_script.py", script, "text/x-python");
+};
+
+$("loadPyBtn").onclick = loadPythonRuntime;
+$("runBtn").onclick = runSelectedFunction;
+
+for (const btn of document.querySelectorAll(".tabBtn")) {
+  btn.onclick = () => {
+    for (const b of document.querySelectorAll(".tabBtn")) b.classList.remove("active");
+    for (const page of document.querySelectorAll(".tabpage")) page.classList.remove("active");
+
+    btn.classList.add("active");
+    $(btn.dataset.tab).classList.add("active");
+  };
+}
+</script>
+</body>
+</html>
