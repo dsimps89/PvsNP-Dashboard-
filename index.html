@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>NP PDF Unified Program - First Pass</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header>
+    <h1>NP PDF Unified Program</h1>
+    <p>Upload a PDF, extract problem/code sections, search them, inspect warnings, and test simple functions.</p>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>1. Drop in PDF</h2>
+      <input id="pdfInput" type="file" accept="application/pdf">
+      <button id="uploadBtn">Compile Catalog</button>
+      <pre id="status">Waiting for PDF...</pre>
+    </section>
+
+    <section class="grid">
+      <aside class="panel">
+        <h2>2. Problems</h2>
+        <input id="search" placeholder="Search problem name or code...">
+        <div id="problemList"></div>
+      </aside>
+
+      <section class="panel">
+        <h2 id="selectedTitle">3. Unified Rendering</h2>
+        <div id="meta"></div>
+        <h3>Warnings</h3>
+        <ul id="warnings"></ul>
+        <h3>Functions</h3>
+        <div id="functions"></div>
+        <h3>Code</h3>
+        <pre><code id="codeView"></code></pre>
+
+        <h3>Companion Runner</h3>
+        <p class="small">Use JSON arrays for args. Example: <code>[[[0,1],[1,0]], 2]</code></p>
+        <input id="functionName" placeholder="function_name">
+        <textarea id="argsJson" placeholder='Args JSON, e.g. [[[0,1],[1,0]], 2]'></textarea>
+        <button id="runBtn">Run Selected Function</button>
+        <pre id="runOutput"></pre>
+      </section>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
